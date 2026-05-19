@@ -112,7 +112,8 @@ public class RoomsView {
                         "Delete room " + r.getRoomNumber() + "?", ButtonType.YES, ButtonType.NO);
                     confirm.showAndWait().ifPresent(btn -> {
                         if (btn == ButtonType.YES) {
-                            roomList.remove(r);
+                            Main.roomRepository.delete(r.getRoomId());
+                            roomList.setAll(Main.roomService.getAllRooms());
                         }
                     });
                 });

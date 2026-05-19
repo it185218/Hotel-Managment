@@ -95,7 +95,10 @@ public class CustomersView {
                     Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
                         "Delete customer " + c.getFullName() + "?", ButtonType.YES, ButtonType.NO);
                     confirm.showAndWait().ifPresent(b -> {
-                        if (b == ButtonType.YES) customerList.remove(c);
+                        if (b == ButtonType.YES) {
+                        Main.customerRepository.delete(c.getCustomerId());
+                        customerList.setAll(Main.customerRepository.findAll());
+                    }
                     });
                 });
             }

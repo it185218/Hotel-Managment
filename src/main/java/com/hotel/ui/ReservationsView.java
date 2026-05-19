@@ -5,7 +5,6 @@ import com.hotel.domain.Customer;
 import com.hotel.domain.Reservation;
 import com.hotel.domain.Room;
 import com.hotel.enums.ReservationStatus;
-import com.hotel.enums.RoomStatus;
 import com.hotel.exception.ReservationConflictException;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -17,12 +16,16 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.util.StringConverter;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 public class ReservationsView {
+
+    private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("dd/MM/yy");
 
     private ObservableList<Reservation> resList;
     private TableView<Reservation> table;
@@ -34,7 +37,6 @@ public class ReservationsView {
         return root;
     }
 
-    // ── Top bar ────────────────────────────────────────────────────────────────
     private HBox buildTopBar() {
         HBox bar = new HBox();
         bar.setPadding(new Insets(16, 20, 16, 20));
@@ -55,34 +57,26 @@ public class ReservationsView {
         return bar;
     }
 
-    // ── Filters bar ────────────────────────────────────────────────────────────
     private HBox buildFilters() {
         HBox bar = new HBox(10);
         bar.setPadding(new Insets(10, 20, 10, 20));
         bar.setAlignment(Pos.CENTER_LEFT);
         bar.setStyle("-fx-background-color:#f0f0f0;");
 
-        // Date range filter
-        DatePicker dpFrom = new DatePicker();
-        dpFrom.setPromptText("From");
-        dpFrom.setPrefWidth(135);
+        DatePicker dpFrom = datePicker();
+        dpFrom.setPromptText("dd/mm/yy");
+        dpFrom.setPrefWidth(130);
 
-        DatePicker dpTo = new DatePicker();
-        dpTo.setPromptText("To");
-        dpTo.setPrefWidth(135);
+        DatePicker dpTo = datePicker();
+        dpTo.setPromptText("dd/mm/yy");
+        dpTo.setPrefWidth(130);
 
-        // ── FIX 3: Search by customer ──────────────────────────────────────────
         ComboBox<Customer> cbCustomer = new ComboBox<>(
             FXCollections.observableArrayList(Main.customerRepository.findAll()));
         cbCustomer.setPromptText("All customers");
-        cbCustomer.setPrefWidth(200);
-        cbCustomer.setCellFactory(lv -> new ListCell<>() {
-            @Override protected void updateItem(Customer c, boolean empty) {
-                super.updateItem(c, empty);
-                setText(empty || c == null ? null : c.getFullName());
-            }
-        });
-        cbCustomer.setButtonCell(cbCustomer.getCellFactory().call(null));
+        cbCustomer.setPrefWidth(190);
+        cbCustomer.setCellFactory(lv -> customerCell());
+        cbCustomer.setButtonCell(customerCell());
 
         Button btnSearch = styledButton("Search", "#cba6f7");
         Button btnClear  = styledButton("Clear",  "#6c7086");
@@ -90,23 +84,16 @@ public class ReservationsView {
 
         btnSearch.setOnAction(e -> {
             List<Reservation> result = Main.reservationService.getAllReservations();
-
-            // Filter by date range if set
             if (dpFrom.getValue() != null && dpTo.getValue() != null) {
                 result = Main.reservationService
                     .getReservationsByDateRange(dpFrom.getValue(), dpTo.getValue());
             }
-
-            // Filter by customer if selected
             if (cbCustomer.getValue() != null) {
-                final List<Reservation> fromDate = result;
+                final List<Reservation> filtered = result;
                 result = Main.reservationService
                     .getReservationsByCustomer(cbCustomer.getValue().getCustomerId())
-                    .stream()
-                    .filter(fromDate::contains)
-                    .toList();
+                    .stream().filter(filtered::contains).toList();
             }
-
             resList.setAll(result);
         });
 
@@ -126,7 +113,6 @@ public class ReservationsView {
         return bar;
     }
 
-    // ── Table content ──────────────────────────────────────────────────────────
     private VBox buildContent() {
         VBox content = new VBox(14);
         content.setPadding(new Insets(20));
@@ -152,58 +138,43 @@ public class ReservationsView {
         TableColumn<Reservation, String> colRoom = new TableColumn<>("Room");
         colRoom.setCellValueFactory(d ->
             new SimpleStringProperty(d.getValue().getRoom().getRoomNumber()));
-        colRoom.setMaxWidth(75);
+        colRoom.setMaxWidth(70);
 
         TableColumn<Reservation, String> colType = new TableColumn<>("Type");
         colType.setCellValueFactory(d ->
             new SimpleStringProperty(d.getValue().getRoom().getType().name()));
-        colType.setMaxWidth(85);
+        colType.setMaxWidth(80);
 
         TableColumn<Reservation, String> colIn = new TableColumn<>("Check-in");
         colIn.setCellValueFactory(d ->
-            new SimpleStringProperty(d.getValue().getCheckInDate().toString()));
+            new SimpleStringProperty(d.getValue().getCheckInDate().format(FMT)));
 
         TableColumn<Reservation, String> colOut = new TableColumn<>("Check-out");
         colOut.setCellValueFactory(d ->
-            new SimpleStringProperty(d.getValue().getCheckOutDate().toString()));
+            new SimpleStringProperty(d.getValue().getCheckOutDate().format(FMT)));
 
         TableColumn<Reservation, String> colNights = new TableColumn<>("Nights");
         colNights.setCellValueFactory(d -> {
-            long nights = ChronoUnit.DAYS.between(
+            long n = ChronoUnit.DAYS.between(
                 d.getValue().getCheckInDate(), d.getValue().getCheckOutDate());
-            return new SimpleStringProperty(String.valueOf(nights));
+            return new SimpleStringProperty(String.valueOf(n));
         });
-        colNights.setMaxWidth(65);
+        colNights.setMaxWidth(60);
 
-        // ── FIX 2: Total cost column ───────────────────────────────────────────
         TableColumn<Reservation, String> colTotal = new TableColumn<>("Total");
         colTotal.setCellValueFactory(d -> {
-            long nights = ChronoUnit.DAYS.between(
+            long n = ChronoUnit.DAYS.between(
                 d.getValue().getCheckInDate(), d.getValue().getCheckOutDate());
-            double total = nights * d.getValue().getRoom().getPricePerNight();
+            double total = n * d.getValue().getRoom().getPricePerNight();
             return new SimpleStringProperty(String.format("$%.2f", total));
         });
-        colTotal.setMaxWidth(90);
+        colTotal.setMaxWidth(85);
 
         TableColumn<Reservation, String> colStatus = new TableColumn<>("Status");
         colStatus.setCellValueFactory(d ->
             new SimpleStringProperty(d.getValue().getStatus().name()));
         colStatus.setMaxWidth(105);
-        colStatus.setCellFactory(col -> new TableCell<>() {
-            @Override protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) { setText(null); setStyle(""); return; }
-                setText(item);
-                String color = switch (item) {
-                    case "CONFIRMED" -> "#a6e3a1";
-                    case "CANCELLED" -> "#f38ba8";
-                    case "COMPLETED" -> "#89b4fa";
-                    default          -> "#cdd6f4";
-                };
-                setStyle("-fx-background-color:" + color +
-                         ";-fx-background-radius:6;-fx-alignment:center;");
-            }
-        });
+        colStatus.setCellFactory(col -> statusCell());
 
         TableColumn<Reservation, Void> colActions = new TableColumn<>("Actions");
         colActions.setMaxWidth(185);
@@ -213,7 +184,6 @@ public class ReservationsView {
             final HBox   box         = new HBox(6, btnCancel, btnComplete);
             {
                 box.setAlignment(Pos.CENTER);
-
                 btnCancel.setOnAction(e -> {
                     Reservation r = getTableView().getItems().get(getIndex());
                     if (r.getStatus() != ReservationStatus.CONFIRMED) {
@@ -221,11 +191,8 @@ public class ReservationsView {
                         return;
                     }
                     Main.reservationService.cancelReservation(r.getReservationId());
-                    // ── FIX 4: restore room to AVAILABLE on cancel ─────────────
-                    Main.roomService.updateRoomStatus(r.getRoom().getRoomId(), RoomStatus.AVAILABLE);
                     resList.setAll(Main.reservationService.getAllReservations());
                 });
-
                 btnComplete.setOnAction(e -> {
                     Reservation r = getTableView().getItems().get(getIndex());
                     if (r.getStatus() != ReservationStatus.CONFIRMED) {
@@ -233,8 +200,6 @@ public class ReservationsView {
                         return;
                     }
                     Main.reservationService.completeReservation(r.getReservationId());
-                    // ── FIX 4: restore room to AVAILABLE on complete ───────────
-                    Main.roomService.updateRoomStatus(r.getRoom().getRoomId(), RoomStatus.AVAILABLE);
                     resList.setAll(Main.reservationService.getAllReservations());
                 });
             }
@@ -249,7 +214,6 @@ public class ReservationsView {
         return t;
     }
 
-    // ── New reservation dialog ─────────────────────────────────────────────────
     private void showNewReservationDialog() {
         List<Customer> customers = Main.customerRepository.findAll();
         if (customers.isEmpty()) {
@@ -268,7 +232,7 @@ public class ReservationsView {
         grid.setHgap(12); grid.setVgap(14);
         grid.setPadding(new Insets(20));
 
-        // Customer dropdown
+        // Customer
         ComboBox<Customer> cbCustomer = new ComboBox<>(
             FXCollections.observableArrayList(customers));
         cbCustomer.setPromptText("Select customer...");
@@ -281,18 +245,20 @@ public class ReservationsView {
         });
         cbCustomer.setButtonCell(cbCustomer.getCellFactory().call(null));
 
-        // Date pickers
-        DatePicker dpIn  = new DatePicker(LocalDate.now());
-        DatePicker dpOut = new DatePicker(LocalDate.now().plusDays(3));
+        // Date pickers with dd/MM/yy format
+        DatePicker dpIn  = datePicker();
+        DatePicker dpOut = datePicker();
+        dpIn.setValue(LocalDate.now());
+        dpOut.setValue(LocalDate.now().plusDays(3));
         dpIn.setPrefWidth(300);
         dpOut.setPrefWidth(300);
 
-        // ── FIX 2: Cost preview label ──────────────────────────────────────────
+        // Cost preview
         Label lblCost = new Label("Total cost: —");
         lblCost.setFont(Font.font("System", FontWeight.BOLD, 13));
-        lblCost.setTextFill(Color.web("#1e1e2e"));
+        lblCost.setTextFill(Color.web("#6c7086"));
 
-        // ── FIX 1: Room dropdown — only available rooms for selected dates ─────
+        // Room dropdown — only available for selected dates
         ComboBox<Room> cbRoom = new ComboBox<>();
         cbRoom.setPromptText("Select dates first...");
         cbRoom.setPrefWidth(300);
@@ -306,7 +272,7 @@ public class ReservationsView {
         });
         cbRoom.setButtonCell(cbRoom.getCellFactory().call(null));
 
-        // Refresh available rooms and cost whenever dates change
+        // Refresh available rooms whenever dates change
         Runnable refreshRooms = () -> {
             LocalDate in  = dpIn.getValue();
             LocalDate out = dpOut.getValue();
@@ -316,24 +282,24 @@ public class ReservationsView {
                 cbRoom.setPromptText(available.isEmpty() ? "No rooms available" : "Select room...");
                 cbRoom.setValue(null);
                 lblCost.setText("Total cost: —");
+                lblCost.setTextFill(Color.web("#6c7086"));
             }
         };
 
         dpIn.valueProperty().addListener((obs, o, n) -> refreshRooms.run());
         dpOut.valueProperty().addListener((obs, o, n) -> refreshRooms.run());
 
-        // Update cost preview when room is selected
+        // Update cost when room is chosen
         cbRoom.valueProperty().addListener((obs, o, room) -> {
             if (room != null && dpIn.getValue() != null && dpOut.getValue() != null) {
                 long nights = ChronoUnit.DAYS.between(dpIn.getValue(), dpOut.getValue());
                 double total = nights * room.getPricePerNight();
                 lblCost.setText(String.format(
-                    "Total cost: %d nights x $%.2f = $%.2f", nights, room.getPricePerNight(), total));
+                    "Total: %d nights x $%.2f = $%.2f", nights, room.getPricePerNight(), total));
                 lblCost.setTextFill(Color.web("#40a02b"));
             }
         });
 
-        // Trigger initial load
         refreshRooms.run();
 
         grid.addRow(0, new Label("Customer:"),  cbCustomer);
@@ -353,18 +319,12 @@ public class ReservationsView {
                     return null;
                 }
                 try {
-                    Reservation res = Main.reservationService.createReservation(
+                    return Main.reservationService.createReservation(
                         cbCustomer.getValue().getCustomerId(),
                         cbRoom.getValue().getRoomId(),
                         dpIn.getValue(), dpOut.getValue());
-
-                    // ── FIX 4: Mark room as OCCUPIED on booking ────────────────
-                    Main.roomService.updateRoomStatus(
-                        cbRoom.getValue().getRoomId(), RoomStatus.OCCUPIED);
-
-                    return res;
                 } catch (ReservationConflictException ex) {
-                    showError("Booking conflict: " + ex.getMessage());
+                    showError("Booking conflict:\n" + ex.getMessage());
                 } catch (Exception ex) {
                     showError("Error: " + ex.getMessage());
                 }
@@ -377,16 +337,58 @@ public class ReservationsView {
             long nights = ChronoUnit.DAYS.between(r.getCheckInDate(), r.getCheckOutDate());
             double total = nights * r.getRoom().getPricePerNight();
             showInfo(String.format(
-                "Reservation confirmed!\n\nGuest: %s\nRoom: %s (%s)\nDates: %s to %s\nNights: %d\nTotal: $%.2f",
+                "Reservation confirmed!\n\nGuest:    %s\nRoom:     %s (%s)\nCheck-in: %s\nCheck-out:%s\nNights:   %d\nTotal:    $%.2f",
                 r.getCustomer().getFullName(),
-                r.getRoom().getRoomNumber(),
-                r.getRoom().getType(),
-                r.getCheckInDate(), r.getCheckOutDate(),
+                r.getRoom().getRoomNumber(), r.getRoom().getType(),
+                r.getCheckInDate().format(FMT), r.getCheckOutDate().format(FMT),
                 nights, total));
         });
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
+
+    /** Creates a DatePicker that displays and parses dd/MM/yy. */
+    private DatePicker datePicker() {
+        DatePicker dp = new DatePicker();
+        dp.setConverter(new StringConverter<>() {
+            @Override public String toString(LocalDate d) {
+                return d == null ? "" : d.format(FMT);
+            }
+            @Override public LocalDate fromString(String s) {
+                if (s == null || s.isBlank()) return null;
+                try { return LocalDate.parse(s, FMT); } catch (Exception e) { return null; }
+            }
+        });
+        return dp;
+    }
+
+    private ListCell<Customer> customerCell() {
+        return new ListCell<>() {
+            @Override protected void updateItem(Customer c, boolean empty) {
+                super.updateItem(c, empty);
+                setText(empty || c == null ? null : c.getFullName());
+            }
+        };
+    }
+
+    private TableCell<Reservation, String> statusCell() {
+        return new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) { setText(null); setStyle(""); return; }
+                setText(item);
+                String color = switch (item) {
+                    case "CONFIRMED" -> "#a6e3a1";
+                    case "CANCELLED" -> "#f38ba8";
+                    case "COMPLETED" -> "#89b4fa";
+                    default          -> "#cdd6f4";
+                };
+                setStyle("-fx-background-color:" + color +
+                         ";-fx-background-radius:6;-fx-alignment:center;");
+            }
+        };
+    }
+
     private Button styledButton(String text, String color) {
         Button btn = new Button(text);
         btn.setStyle("-fx-background-color:" + color + ";-fx-background-radius:6;" +

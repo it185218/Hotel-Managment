@@ -114,11 +114,11 @@ public class DashboardView {
 
         TableColumn<Reservation, String> colIn = new TableColumn<>("Check-in");
         colIn.setCellValueFactory(d ->
-            new javafx.beans.property.SimpleStringProperty(d.getValue().getCheckInDate().toString()));
+            new javafx.beans.property.SimpleStringProperty(d.getValue().getCheckInDate().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yy"))));
 
         TableColumn<Reservation, String> colOut = new TableColumn<>("Check-out");
         colOut.setCellValueFactory(d ->
-            new javafx.beans.property.SimpleStringProperty(d.getValue().getCheckOutDate().toString()));
+            new javafx.beans.property.SimpleStringProperty(d.getValue().getCheckOutDate().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yy"))));
 
         TableColumn<Reservation, String> colTotal = new TableColumn<>("Total");
         colTotal.setCellValueFactory(d -> {
