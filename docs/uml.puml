@@ -1,0 +1,198 @@
+@startuml Hotel Management System
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 13
+skinparam classBackgroundColor #F8F9FA
+skinparam classBorderColor #343A40
+skinparam arrowColor #343A40
+skinparam stereotypeCBackgroundColor #D1ECF1
+
+' ─────────────────── ENUMS ───────────────────
+
+enum RoomType {
+  SINGLE
+  DOUBLE
+  SUITE
+}
+
+enum RoomStatus {
+  AVAILABLE
+  OCCUPIED
+  MAINTENANCE
+}
+
+enum ReservationStatus {
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+' ─────────────────── DOMAIN ───────────────────
+
+class Room {
+  - id : UUID
+  - roomNumber : String
+  - type : RoomType
+  - pricePerNight : double
+  - status : RoomStatus
+  + getId() : UUID
+  + getRoomNumber() : String
+  + getType() : RoomType
+  + getPricePerNight() : double
+  + getStatus() : RoomStatus
+  + setStatus(status : RoomStatus) : void
+  + toString() : String
+}
+
+class Customer {
+  - id : UUID
+  - firstName : String
+  - lastName : String
+  - email : String
+  - phoneNumber : String
+  + getId() : UUID
+  + getFirstName() : String
+  + getLastName() : String
+  + getEmail() : String
+  + getPhoneNumber() : String
+  + getFullName() : String
+  + toString() : String
+}
+
+class Reservation {
+  - id : UUID
+  - customer : Customer
+  - room : Room
+  - checkInDate : LocalDate
+  - checkOutDate : LocalDate
+  - status : ReservationStatus
+  + getId() : UUID
+  + getCustomer() : Customer
+  + getRoom() : Room
+  + getCheckInDate() : LocalDate
+  + getCheckOutDate() : LocalDate
+  + getStatus() : ReservationStatus
+  + setStatus(status : ReservationStatus) : void
+  + overlapsWith(checkIn : LocalDate, checkOut : LocalDate) : boolean
+  + toString() : String
+}
+
+' ─────────────────── REPOSITORIES ───────────────────
+
+interface RoomRepository {
+  + save(room : Room) : Room
+  + findById(id : UUID) : Optional<Room>
+  + findAll() : List<Room>
+  + findByStatus(status : RoomStatus) : List<Room>
+  + findByRoomNumber(roomNumber : String) : Optional<Room>
+}
+
+interface CustomerRepository {
+  + save(customer : Customer) : Customer
+  + findById(id : UUID) : Optional<Customer>
+  + findAll() : List<Customer>
+  + findByEmail(email : String) : Optional<Customer>
+}
+
+interface ReservationRepository {
+  + save(reservation : Reservation) : Reservation
+  + findById(id : UUID) : Optional<Reservation>
+  + findAll() : List<Reservation>
+  + findByCustomerId(customerId : UUID) : List<Reservation>
+  + findByDateRange(from : LocalDate, to : LocalDate) : List<Reservation>
+  + findByRoomId(roomId : UUID) : List<Reservation>
+}
+
+class InMemoryRoomRepository {
+  - store : Map<UUID, Room>
+  + save(room : Room) : Room
+  + findById(id : UUID) : Optional<Room>
+  + findAll() : List<Room>
+  + findByStatus(status : RoomStatus) : List<Room>
+  + findByRoomNumber(roomNumber : String) : Optional<Room>
+}
+
+class InMemoryCustomerRepository {
+  - store : Map<UUID, Customer>
+  + save(customer : Customer) : Customer
+  + findById(id : UUID) : Optional<Customer>
+  + findAll() : List<Customer>
+  + findByEmail(email : String) : Optional<Customer>
+}
+
+class InMemoryReservationRepository {
+  - store : Map<UUID, Reservation>
+  + save(reservation : Reservation) : Reservation
+  + findById(id : UUID) : Optional<Reservation>
+  + findAll() : List<Reservation>
+  + findByCustomerId(customerId : UUID) : List<Reservation>
+  + findByDateRange(from : LocalDate, to : LocalDate) : List<Reservation>
+  + findByRoomId(roomId : UUID) : List<Reservation>
+}
+
+' ─────────────────── SERVICES ───────────────────
+
+class RoomService {
+  - roomRepository : RoomRepository
+  + RoomService(roomRepository : RoomRepository)
+  + createRoom(roomNumber : String, type : RoomType, pricePerNight : double) : Room
+  + getAvailableRooms() : List<Room>
+  + getAvailableRoomsForDateRange(checkIn : LocalDate, checkOut : LocalDate) : List<Room>
+  + updateRoomStatus(roomId : UUID, status : RoomStatus) : Room
+  + getRoomById(roomId : UUID) : Room
+}
+
+class ReservationService {
+  - reservationRepository : ReservationRepository
+  - roomRepository : RoomRepository
+  - customerRepository : CustomerRepository
+  + ReservationService(...)
+  + createReservation(customerId : UUID, roomId : UUID, checkIn : LocalDate, checkOut : LocalDate) : Reservation
+  + cancelReservation(reservationId : UUID) : Reservation
+  + completeReservation(reservationId : UUID) : Reservation
+  + getReservationsByCustomer(customerId : UUID) : List<Reservation>
+  + getReservationsByDateRange(from : LocalDate, to : LocalDate) : List<Reservation>
+  + isRoomAvailable(roomId : UUID, checkIn : LocalDate, checkOut : LocalDate) : boolean
+}
+
+' ─────────────────── EXCEPTIONS ───────────────────
+
+class NotFoundException {
+  + NotFoundException(message : String)
+}
+
+class ReservationConflictException {
+  + ReservationConflictException(message : String)
+}
+
+' ─────────────────── MAIN ───────────────────
+
+class Main {
+  + {static} main(args : String[]) : void
+}
+
+' ─────────────────── RELATIONSHIPS ───────────────────
+
+Room --> RoomType
+Room --> RoomStatus
+
+Reservation --> ReservationStatus
+Reservation --> Customer
+Reservation --> Room
+
+RoomRepository <|.. InMemoryRoomRepository
+CustomerRepository <|.. InMemoryCustomerRepository
+ReservationRepository <|.. InMemoryReservationRepository
+
+RoomService --> RoomRepository
+ReservationService --> ReservationRepository
+ReservationService --> RoomRepository
+ReservationService --> CustomerRepository
+
+NotFoundException --|> RuntimeException
+ReservationConflictException --|> RuntimeException
+
+Main --> RoomService
+Main --> ReservationService
+
+@enduml

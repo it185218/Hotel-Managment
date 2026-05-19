@@ -1,0 +1,29 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'com.hotel'
+version = '1.0.0'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+application {
+    mainClass = 'com.hotel.Main'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // No external dependencies — pure Java in-memory system
+}
+
+tasks.named('run') {
+    standardInput = System.in
+}
