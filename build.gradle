@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'application'
+    id 'org.openjfx.javafxplugin' version '0.1.0'
 }
 
 group = 'com.hotel'
@@ -12,6 +13,11 @@ java {
     }
 }
 
+javafx {
+    version = '21'
+    modules = ['javafx.controls', 'javafx.fxml']
+}
+
 application {
     mainClass = 'com.hotel.Main'
 }
@@ -21,9 +27,4 @@ repositories {
 }
 
 dependencies {
-    // No external dependencies — pure Java in-memory system
-}
-
-tasks.named('run') {
-    standardInput = System.in
 }
