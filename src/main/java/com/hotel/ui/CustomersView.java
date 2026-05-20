@@ -71,6 +71,17 @@ public class CustomersView {
         t.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         t.setStyle("-fx-background-color:white;-fx-background-radius:10;");
 
+        // Double-click on row opens customer info
+        t.setRowFactory(tv -> {
+            TableRow<Customer> row = new TableRow<>();
+            row.setOnMouseClicked(e -> {
+                if (e.getClickCount() == 2 && !row.isEmpty()) {
+                    showCustomerInfoDialog(row.getItem());
+                }
+            });
+            return row;
+        });
+
         TableColumn<Customer, String> colFirst = new TableColumn<>("First Name");
         colFirst.setCellValueFactory(d ->
             new SimpleStringProperty(d.getValue().getFirstName()));
@@ -110,19 +121,17 @@ public class CustomersView {
         colSpent.setMaxWidth(100);
 
         TableColumn<Customer, Void> colActions = new TableColumn<>("Actions");
-        colActions.setMaxWidth(160);
+        colActions.setMaxWidth(100);
         colActions.setCellFactory(col -> new TableCell<>() {
-            final Button btnInfo   = styledButton("Info",   "#89b4fa");
-            final Button btnDelete = styledButton("Delete", "#f38ba8");
-            final HBox   box       = new HBox(6, btnInfo, btnDelete);
-            {
-                box.setAlignment(Pos.CENTER);
-                btnInfo.setOnAction(e -> {
-                    Customer c = getTableView().getItems().get(getIndex());
-                    showCustomerInfoDialog(c);
-                });
+            @Override protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || getIndex() < 0 || getIndex() >= getTableView().getItems().size()) {
+                    setGraphic(null);
+                    return;
+                }
+                Customer c = getTableView().getItems().get(getIndex());
+                Button btnDelete = styledButton("Delete", "#f38ba8");
                 btnDelete.setOnAction(e -> {
-                    Customer c = getTableView().getItems().get(getIndex());
                     Alert confirm = new Alert(Alert.AlertType.CONFIRMATION,
                         "Delete customer " + c.getFullName() + "?",
                         ButtonType.YES, ButtonType.NO);
@@ -133,10 +142,9 @@ public class CustomersView {
                         }
                     });
                 });
-            }
-            @Override protected void updateItem(Void item, boolean empty) {
-                super.updateItem(item, empty);
-                setGraphic(empty ? null : box);
+                HBox box = new HBox(btnDelete);
+                box.setAlignment(Pos.CENTER);
+                setGraphic(box);
             }
         });
 
