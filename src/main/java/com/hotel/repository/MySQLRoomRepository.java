@@ -1,15 +1,13 @@
 package com.hotel.repository;
 
 import com.hotel.db.DatabaseConnection;
+import com.hotel.domain.Floor;
 import com.hotel.domain.Room;
 import com.hotel.enums.RoomStatus;
 import com.hotel.enums.RoomType;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 public class MySQLRoomRepository implements RoomRepository {
 
@@ -20,13 +18,14 @@ public class MySQLRoomRepository implements RoomRepository {
     @Override
     public Room save(Room room) {
         String sql = """
-            INSERT INTO rooms (id, room_number, type, price_per_night, status)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO rooms (id, room_number, type, price_per_night, status, floor_id)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
-                room_number   = VALUES(room_number),
-                type          = VALUES(type),
+                room_number     = VALUES(room_number),
+                type            = VALUES(type),
                 price_per_night = VALUES(price_per_night),
-                status        = VALUES(status)
+                status          = VALUES(status),
+                floor_id        = VALUES(floor_id)
             """;
         try (PreparedStatement ps = conn().prepareStatement(sql)) {
             ps.setString(1, room.getRoomId().toString());
@@ -34,6 +33,10 @@ public class MySQLRoomRepository implements RoomRepository {
             ps.setString(3, room.getType().name());
             ps.setDouble(4, room.getPricePerNight());
             ps.setString(5, room.getStatus().name());
+            if (room.getFloor() != null)
+                ps.setString(6, room.getFloor().getFloorId().toString());
+            else
+                ps.setNull(6, Types.CHAR);
             ps.executeUpdate();
             return room;
         } catch (SQLException e) {
@@ -43,7 +46,7 @@ public class MySQLRoomRepository implements RoomRepository {
 
     @Override
     public Optional<Room> findById(UUID id) {
-        String sql = "SELECT * FROM rooms WHERE id = ?";
+        String sql = buildJoin("r.id = ?");
         try (PreparedStatement ps = conn().prepareStatement(sql)) {
             ps.setString(1, id.toString());
             ResultSet rs = ps.executeQuery();
@@ -56,7 +59,7 @@ public class MySQLRoomRepository implements RoomRepository {
 
     @Override
     public List<Room> findAll() {
-        String sql = "SELECT * FROM rooms ORDER BY room_number";
+        String sql = buildJoin(null) + " ORDER BY f.floor_number, r.room_number";
         try (Statement st = conn().createStatement();
              ResultSet rs = st.executeQuery(sql)) {
             List<Room> list = new ArrayList<>();
@@ -69,7 +72,7 @@ public class MySQLRoomRepository implements RoomRepository {
 
     @Override
     public List<Room> findByStatus(RoomStatus status) {
-        String sql = "SELECT * FROM rooms WHERE status = ? ORDER BY room_number";
+        String sql = buildJoin("r.status = ?") + " ORDER BY f.floor_number, r.room_number";
         try (PreparedStatement ps = conn().prepareStatement(sql)) {
             ps.setString(1, status.name());
             ResultSet rs = ps.executeQuery();
@@ -83,7 +86,7 @@ public class MySQLRoomRepository implements RoomRepository {
 
     @Override
     public Optional<Room> findByRoomNumber(String roomNumber) {
-        String sql = "SELECT * FROM rooms WHERE room_number = ?";
+        String sql = buildJoin("r.room_number = ?");
         try (PreparedStatement ps = conn().prepareStatement(sql)) {
             ps.setString(1, roomNumber);
             ResultSet rs = ps.executeQuery();
@@ -94,23 +97,55 @@ public class MySQLRoomRepository implements RoomRepository {
         }
     }
 
+    public List<Room> findByFloorId(UUID floorId) {
+        String sql = buildJoin("r.floor_id = ?") + " ORDER BY r.room_number";
+        try (PreparedStatement ps = conn().prepareStatement(sql)) {
+            ps.setString(1, floorId.toString());
+            ResultSet rs = ps.executeQuery();
+            List<Room> list = new ArrayList<>();
+            while (rs.next()) list.add(mapRow(rs));
+            return list;
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to find rooms by floor: " + e.getMessage(), e);
+        }
+    }
+
     public void delete(UUID id) {
         String sql = "DELETE FROM rooms WHERE id = ?";
         try (PreparedStatement ps = conn().prepareStatement(sql)) {
-            ps.setString(1, id.toString());
-            ps.executeUpdate();
+            ps.setString(1, id.toString()); ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Failed to delete room: " + e.getMessage(), e);
         }
     }
 
+    private String buildJoin(String where) {
+        String base = """
+            SELECT r.id, r.room_number, r.type, r.price_per_night, r.status,
+                   f.id AS floor_id, f.floor_number, f.description AS floor_desc
+            FROM rooms r
+            LEFT JOIN floors f ON r.floor_id = f.id
+            """;
+        return where == null ? base : base + " WHERE " + where;
+    }
+
     private Room mapRow(ResultSet rs) throws SQLException {
+        Floor floor = null;
+        String floorId = rs.getString("floor_id");
+        if (floorId != null && !rs.wasNull()) {
+            floor = new Floor(
+                UUID.fromString(floorId),
+                rs.getInt("floor_number"),
+                rs.getString("floor_desc")
+            );
+        }
         return new Room(
             UUID.fromString(rs.getString("id")),
             rs.getString("room_number"),
             RoomType.valueOf(rs.getString("type")),
             rs.getDouble("price_per_night"),
-            RoomStatus.valueOf(rs.getString("status"))
+            RoomStatus.valueOf(rs.getString("status")),
+            floor
         );
     }
 }

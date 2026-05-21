@@ -1,5 +1,4 @@
 -- Hotel Management System - MySQL Schema
--- Run this once to initialise the database
 
 CREATE DATABASE IF NOT EXISTS hotel_db
     CHARACTER SET utf8mb4
@@ -7,13 +6,23 @@ CREATE DATABASE IF NOT EXISTS hotel_db
 
 USE hotel_db;
 
+-- Floors table (new)
+CREATE TABLE IF NOT EXISTS floors (
+    id           CHAR(36)      NOT NULL PRIMARY KEY,
+    floor_number INT           NOT NULL UNIQUE,
+    description  VARCHAR(100),
+    created_at   TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS rooms (
-    id            CHAR(36)       NOT NULL PRIMARY KEY,
-    room_number   VARCHAR(10)    NOT NULL UNIQUE,
-    type          VARCHAR(10)    NOT NULL,
-    price_per_night DECIMAL(10,2) NOT NULL,
-    status        VARCHAR(15)    NOT NULL DEFAULT 'AVAILABLE',
-    created_at    TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP
+    id              CHAR(36)       NOT NULL PRIMARY KEY,
+    room_number     VARCHAR(10)    NOT NULL UNIQUE,
+    type            VARCHAR(10)    NOT NULL,
+    price_per_night DECIMAL(10,2)  NOT NULL,
+    status          VARCHAR(15)    NOT NULL DEFAULT 'AVAILABLE',
+    floor_id        CHAR(36)       NULL,
+    created_at      TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_room_floor FOREIGN KEY (floor_id) REFERENCES floors(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS customers (

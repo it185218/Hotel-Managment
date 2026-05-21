@@ -1,123 +1,108 @@
-# 🏨 Hotel Management System
+# Hotel Management System
 
-A production-style, console-based Hotel Management System built with **Java 17**, **Gradle (Groovy DSL)**, and **Clean Architecture** principles. Designed as both an academic and production-quality OOP showcase.
+A desktop application for hotel room and reservation management, built with Java 17, JavaFX, MySQL, and Gradle.
+
+## Overview
+
+The system provides a graphical interface for managing the core operations of a hotel: room inventory organised by floor, customer records, and the full reservation lifecycle. All data is persisted in a MySQL database and survives application restarts.
+
+The architecture follows Clean Architecture principles with a clear separation between domain entities, repository (data access), service (business logic), and UI layers. Reservation conflict detection is enforced at the service level — no two confirmed bookings can overlap for the same room.
+
+## Features
+
+- Floor management: create named floors and assign rooms to them
+- Room management: add, update status (Available / Maintenance), delete, and view full booking history per room
+- Customer management: register customers, view total spend and complete reservation history per customer
+- Reservation wizard: select a room, choose a customer, then pick dates on a calendar that highlights already-booked days
+- Conflict detection: the system prevents overlapping confirmed reservations automatically
+- Dashboard: live summary of occupied rooms today, check-ins, check-outs, and total revenue
+- Filters on the reservations list by guest and status
 
 ---
 
-## 📋 Project Description
+## Requirements
 
-This system simulates a real hotel management workflow:
-- Room inventory management (SINGLE, DOUBLE, SUITE)
-- Customer registration
-- Reservation lifecycle (create, confirm, cancel, complete)
-- Conflict detection (overlapping date validation)
-- Search and reporting via Java Streams
+- Java 17 or later (Eclipse Temurin recommended)
+- Gradle 8 or later
+- MySQL Server 8 or later
 
 ---
 
-## 🚀 How to Run
+## Setup and Installation
 
-### Prerequisites
-- Java 17+ installed
-- Gradle 8+ installed (or use `./gradlew`)
+### 1. Install Java 17
 
-### Build
-```bash
-cd hotel-management
-gradle build
+Download and install Temurin 17 from https://adoptium.net.
+During installation, enable the options to set JAVA_HOME and add Java to the PATH.
+
+Verify the installation:
+```
+java -version
 ```
 
-### Run
-```bash
+### 2. Install Gradle
+
+Download the binary-only ZIP for Gradle 8.x from https://gradle.org/releases and extract it to `C:\Gradle\gradle-8.x`.
+
+Add `C:\Gradle\gradle-8.x\bin` to your system PATH, then verify:
+```
+gradle -version
+```
+
+### 3. Install MySQL Server
+
+Download MySQL Installer from https://dev.mysql.com/downloads/installer and run it with the Developer Default setup type.
+
+Set a root password during installation and note it down.
+
+### 4. Create the database
+
+Open MySQL Workbench or the MySQL command line and run:
+```sql
+CREATE DATABASE IF NOT EXISTS hotel_db
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+```
+
+### 5. Configure the database connection
+
+Open the file:
+```
+src/main/resources/db.properties
+```
+
+Set your MySQL root password:
+```
+db.url=jdbc:mysql://localhost:3306/hotel_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+db.username=root
+db.password=YOUR_PASSWORD_HERE
+```
+
+### 6. Run the application
+
+Open a terminal in the `hotel-management` folder and run:
+```
 gradle run
 ```
 
----
-
-## ✅ Features
-
-| Feature | Description |
-|---|---|
-| Room Management | Create rooms with type, price, and status |
-| Availability Check | Query available rooms for a date range |
-| Reservation Creation | Book a room with full conflict validation |
-| Conflict Detection | Prevents overlapping reservations |
-| Cancel Reservation | Change reservation status to CANCELLED |
-| Search by Customer | Filter reservations by customer ID |
-| Search by Date Range | Filter reservations overlapping a date window |
-| Stream-based Queries | All searches use Java Streams |
-| Exception Handling | Custom exceptions for business rule violations |
+On the first launch, the application creates all required database tables automatically. Subsequent launches connect directly to the existing data.
 
 ---
 
-## 🏗️ Architecture
+## Project Structure
 
 ```
-com.hotel/
-├── domain/         → Pure entities (Room, Customer, Reservation)
-├── enums/          → RoomType, RoomStatus, ReservationStatus
-├── repository/     → In-memory data access (interface + impl)
-├── service/        → Business logic (RoomService, ReservationService)
-├── exception/      → Domain exceptions
-└── Main.java       → Demo runner
+hotel-management/
+├── build.gradle
+├── settings.gradle
+└── src/main/java/com/hotel/
+    ├── Main.java
+    ├── domain/         Room, Customer, Reservation, Floor
+    ├── enums/          RoomType, RoomStatus, ReservationStatus
+    ├── repository/     Interfaces + MySQL implementations
+    ├── service/        RoomService, ReservationService
+    ├── exception/      NotFoundException, ReservationConflictException
+    ├── db/             DatabaseConnection, DatabaseInitializer
+    └── ui/             MainWindow, DashboardView, RoomsView,
+                        CustomersView, ReservationsView
 ```
-
-- **Clean Architecture**: Domain → Repository → Service → Main
-- **SOLID**: Each class has a single responsibility; services depend on repository abstractions
-- **No external dependencies**: Pure Java stdlib
-
----
-
-## 📊 Example Console Output
-
-```
-============================================================
- HOTEL MANAGEMENT SYSTEM - Demo
-============================================================
-
-[ROOMS] Creating rooms...
-  ✔ Created: Room 101 | SINGLE    | $120.00/night | AVAILABLE
-  ✔ Created: Room 201 | DOUBLE    | $180.00/night | AVAILABLE
-  ✔ Created: Room 301 | SUITE     | $350.00/night | AVAILABLE
-  ✔ Created: Room 102 | SINGLE    | $120.00/night | MAINTENANCE
-
-[CUSTOMERS] Registering customers...
-  ✔ Registered: Alice Johnson (alice@example.com)
-  ✔ Registered: Bob Smith (bob@example.com)
-
-[AVAILABILITY] Rooms available from 2025-06-01 to 2025-06-05:
-  → Room 101 | SINGLE    | $120.00/night
-  → Room 201 | DOUBLE    | $180.00/night
-  → Room 301 | SUITE     | $350.00/night
-
-[RESERVATION] Making reservation for Alice (Room 101, Jun 1-5)...
-  ✔ Reservation CONFIRMED: Alice Johnson in Room 101 (2025-06-01 → 2025-06-05)
-
-[CONFLICT TEST] Trying conflicting reservation (Room 101, Jun 3-7)...
-  ✘ Conflict detected: Room 101 is already booked from 2025-06-01 to 2025-06-05
-
-[CANCEL] Cancelling Alice's reservation...
-  ✔ Reservation cancelled successfully.
-
-[SEARCH] All reservations for Alice Johnson:
-  → [CANCELLED] Room 101 | 2025-06-01 → 2025-06-05
-
-[SEARCH] Reservations in date range Jun 1-10:
-  → [CONFIRMED] Bob Smith | Room 201 | 2025-06-02 → 2025-06-06
-
-============================================================
- Demo complete.
-============================================================
-```
-
----
-
-## 🗺️ UML & SQL
-
-See `docs/uml.puml` and `docs/schema.sql` for the full class diagram and database schema.
-
----
-
-## 📄 License
-
-Academic/demo project. Free to use and adapt.

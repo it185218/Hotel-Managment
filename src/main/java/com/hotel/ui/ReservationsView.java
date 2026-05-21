@@ -104,22 +104,68 @@ public class ReservationsView {
 
     private VBox buildRoomsGrid() {
         VBox box = new VBox(10);
-        box.setPadding(new Insets(16));
+        box.setPadding(new Insets(16, 16, 8, 16));
         box.setStyle("-fx-background-color:#f8f8f2;");
+        box.setMaxHeight(260);
+        box.setMinHeight(120);
 
         Label lbl = new Label("Select a Room to Book");
         lbl.setFont(Font.font("System", FontWeight.BOLD, 13));
-        lbl.setTextFill(Color.web("#6c7086"));
+        lbl.setStyle("-fx-text-fill:#6c7086;");
 
         FlowPane grid = new FlowPane(10, 10);
-        grid.setPrefWrapLength(480);
+        grid.setPrefWrapLength(460);
 
+        // Group rooms by floor
         List<Room> rooms = Main.roomService.getAllRooms();
-        for (Room room : rooms) {
-            grid.getChildren().add(buildRoomCard(room));
+        List<com.hotel.domain.Floor> floors = Main.floorRepository.findAll();
+
+        if (!floors.isEmpty()) {
+            // Show rooms grouped by floor
+            VBox grouped = new VBox(10);
+            for (com.hotel.domain.Floor floor : floors) {
+                List<Room> floorRooms = rooms.stream()
+                    .filter(r -> r.getFloor() != null &&
+                                 r.getFloor().getFloorId().equals(floor.getFloorId()))
+                    .toList();
+                if (!floorRooms.isEmpty()) {
+                    Label floorLabel = new Label("Floor " + floor.getFloorNumber() +
+                        (floor.getDescription().isBlank() ? "" : " - " + floor.getDescription()));
+                    floorLabel.setFont(Font.font("System", FontWeight.BOLD, 11));
+                    floorLabel.setStyle("-fx-text-fill:#cba6f7;");
+                    FlowPane fp = new FlowPane(8, 8);
+                    fp.setPrefWrapLength(460);
+                    floorRooms.forEach(r -> fp.getChildren().add(buildRoomCard(r)));
+                    grouped.getChildren().addAll(floorLabel, fp);
+                }
+            }
+            // Unassigned rooms
+            List<Room> unassigned = rooms.stream()
+                .filter(r -> r.getFloor() == null).toList();
+            if (!unassigned.isEmpty()) {
+                Label uLbl = new Label("Unassigned");
+                uLbl.setFont(Font.font("System", FontWeight.BOLD, 11));
+                uLbl.setStyle("-fx-text-fill:#6c7086;");
+                FlowPane fp = new FlowPane(8, 8);
+                fp.setPrefWrapLength(460);
+                unassigned.forEach(r -> fp.getChildren().add(buildRoomCard(r)));
+                grouped.getChildren().addAll(uLbl, fp);
+            }
+            ScrollPane scroll = new ScrollPane(grouped);
+            scroll.setFitToWidth(true);
+            scroll.setStyle("-fx-background-color:transparent;-fx-background:transparent;");
+            VBox.setVgrow(scroll, Priority.ALWAYS);
+            box.getChildren().addAll(lbl, scroll);
+        } else {
+            // No floors — just show all rooms in a scrollable grid
+            rooms.forEach(r -> grid.getChildren().add(buildRoomCard(r)));
+            ScrollPane scroll = new ScrollPane(grid);
+            scroll.setFitToWidth(true);
+            scroll.setStyle("-fx-background-color:transparent;-fx-background:transparent;");
+            VBox.setVgrow(scroll, Priority.ALWAYS);
+            box.getChildren().addAll(lbl, scroll);
         }
 
-        box.getChildren().addAll(lbl, grid);
         return box;
     }
 

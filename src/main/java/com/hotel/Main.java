@@ -16,18 +16,19 @@ public class Main extends Application {
     public static ReservationService      reservationService;
     public static MySQLCustomerRepository customerRepository;
     public static MySQLRoomRepository     roomRepository;
+    public static MySQLFloorRepository    floorRepository;
 
     @Override
     public void start(Stage primaryStage) {
         try {
-            // Initialise DB schema (creates tables if not exist)
             DatabaseInitializer.initialize();
 
-            // Wire MySQL repositories
+            MySQLFloorRepository       floorRepo       = new MySQLFloorRepository();
             MySQLRoomRepository        roomRepo        = new MySQLRoomRepository();
             MySQLCustomerRepository    customerRepo    = new MySQLCustomerRepository();
             MySQLReservationRepository reservationRepo = new MySQLReservationRepository();
 
+            floorRepository    = floorRepo;
             roomRepository     = roomRepo;
             customerRepository = customerRepo;
 
@@ -37,14 +38,12 @@ public class Main extends Application {
             new MainWindow(primaryStage).show();
 
         } catch (Exception e) {
-            // Show a friendly error dialog if DB connection fails
             Alert alert = new Alert(Alert.AlertType.ERROR,
                 "Cannot connect to MySQL database.\n\n" +
                 "Please check:\n" +
                 "  1. MySQL Server is running\n" +
                 "  2. Password in src/main/resources/db.properties is correct\n\n" +
-                "Error: " + e.getMessage(),
-                ButtonType.OK);
+                "Error: " + e.getMessage(), ButtonType.OK);
             alert.setTitle("Database Connection Error");
             alert.setHeaderText("Failed to connect to MySQL");
             alert.showAndWait();
@@ -54,7 +53,6 @@ public class Main extends Application {
 
     @Override
     public void stop() {
-        // Close DB connection cleanly when app exits
         DatabaseConnection.getInstance().close();
     }
 
